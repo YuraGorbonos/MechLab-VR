@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace SkillForge.Education
 {
-    public class ActionLogger
+    public class ActionLogger : IActionLogger
     {
         private readonly List<ActionLogEntry> _entries;
 

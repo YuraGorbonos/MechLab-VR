@@ -9,6 +9,9 @@ namespace SkillForge.Core
         bool CheckCondition(StepCondition condition);
         bool IsWorkCompleted();
         DiagnosticResult GetDiagnosticStatus(string subsystem);
+        PartState GetPartState(string partId);
+        string SerializeState();
+        void DeserializeState(string json);
 
         event Action OnWorkStateChanged;
     }

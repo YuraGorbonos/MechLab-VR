@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using SkillForge.Core;
+using SkillForge.Education;
+using UnityEngine;
 
 namespace SkillForge.Education
 {
@@ -11,6 +13,7 @@ namespace SkillForge.Education
         private readonly HashSet<string> _completedSteps;
         private readonly List<ActionLogEntry> _actionLog;
         private readonly float _startTime;
+        private ActionLogger _actionLogger;
 
         public event Action<ScenarioStep> OnStepChanged;
 
@@ -19,7 +22,12 @@ namespace SkillForge.Education
             _completedSteps = new HashSet<string>();
             _actionLog = new List<ActionLogEntry>();
             _currentStepIndex = 0;
-            _startTime = UnityEngine.Time.time;
+            _startTime = Time.time;
+        }
+
+        public void SetActionLogger(ActionLogger logger)
+        {
+            _actionLogger = logger;
         }
 
         public void Initialize(ScenarioConfig config)
@@ -51,13 +59,15 @@ namespace SkillForge.Education
         {
             _actionLog.Add(new ActionLogEntry
             {
-                timestamp = UnityEngine.Time.time - _startTime,
+                timestamp = Time.time - _startTime,
                 playerId = intent.playerId,
                 intentType = intent.intentType,
                 targetObject = intent.targetObject,
                 success = success,
                 errorCode = errorCode
             });
+
+            _actionLogger?.Log(intent, success, errorCode);
 
             if (success)
             {
@@ -98,12 +108,11 @@ namespace SkillForge.Education
 
         public SessionReport GenerateReport()
         {
-            // TODO: integrate with ReportGenerator for full report
             var report = new SessionReport
             {
                 scenarioId = _config?.scenarioId ?? string.Empty,
                 mode = _config?.mode ?? SessionMode.Training,
-                durationSeconds = UnityEngine.Time.time - _startTime,
+                durationSeconds = Time.time - _startTime,
                 totalSteps = _config?.steps?.Length ?? 0,
                 completedSteps = _completedSteps.Count,
                 skippedSteps = 0,

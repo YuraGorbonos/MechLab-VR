@@ -3,7 +3,7 @@ using SkillForge.Core;
 
 namespace SkillForge.Education
 {
-    public class ReportGenerator
+    public class ReportGenerator : IReportGenerator
     {
         // TODO: integrate QuestPDF for PDF report generation
 
