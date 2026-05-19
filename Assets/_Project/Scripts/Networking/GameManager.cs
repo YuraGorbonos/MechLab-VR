@@ -19,6 +19,8 @@ namespace SkillForge.Networking
         [Inject] private IValidationService _validationService;
         [Inject] private IPlayerManager _playerManager;
         [Inject] private IHighlightService _highlightService;
+        [Inject] private IReportGenerator _reportGenerator;
+        [Inject] private IActionLogger _actionLogger;
 
         [SyncVar]
         private int _currentStepIndex;
@@ -29,10 +31,14 @@ namespace SkillForge.Networking
         [SyncVar]
         private bool _isSessionActive;
 
+        private bool _sessionEnded;
+
         [SyncVar(hook = nameof(OnCarStateChangedHook))]
         private string _carStateJson;
 
         public event Action<CarState> OnCarStateChanged;
+        public static event Action<string> OnErrorReceived;
+        public static event Action<string> OnReportGenerated;
 
         private readonly Dictionary<int, NetworkConnectionToClient> _playerConnections;
 
@@ -53,8 +59,7 @@ namespace SkillForge.Networking
 
             if (_educationModule is TrainingSystem trainingSystem)
             {
-                var actionLogger = new ActionLogger();
-                trainingSystem.SetActionLogger(actionLogger);
+                trainingSystem.SetActionLogger(_actionLogger);
             }
 
             Debug.Log("[GameManager] Server started, services initialized.");
@@ -69,6 +74,7 @@ namespace SkillForge.Networking
         [Server]
         public void StartSession(SessionConfig config)
         {
+            _sessionEnded = false;
             var scenarioConfig = new ScenarioConfig
             {
                 scenarioId = config.scenarioId,
@@ -131,6 +137,18 @@ namespace SkillForge.Networking
             }
         }
 
+        [Command(requiresAuthority = false)]
+        public void CmdRequestEndSession(NetworkConnectionToClient sender = null)
+        {
+            if (!_isSessionActive)
+            {
+                Debug.LogWarning("[GameManager] CmdRequestEndSession: no active session.");
+                return;
+            }
+
+            EndSession();
+        }
+
         [Server]
         public void RegisterPlayerConnection(int playerId, NetworkConnectionToClient connection)
         {
@@ -161,9 +179,13 @@ namespace SkillForge.Networking
         [Server]
         private void EndSession()
         {
+            if (_sessionEnded) return;
+            _sessionEnded = true;
             _isSessionActive = false;
             var report = _educationModule.GenerateReport();
+            var filePath = _reportGenerator.Generate(report);
             Debug.Log($"[GameManager] Session ended. Score: {report.score:F1}% | Grade: {report.grade}");
+            RpcShowReport(filePath);
         }
 
         private void OnWorkContextStateChanged()
@@ -183,8 +205,22 @@ namespace SkillForge.Networking
         [TargetRpc]
         private void TargetRpcShowError(NetworkConnectionToClient target, string message)
         {
-            // TODO: show error UI on client
             Debug.LogWarning($"[GameManager] Error for player: {message}");
+            OnErrorReceived?.Invoke(message);
+        }
+
+        [ClientRpc]
+        private void RpcShowError(string message)
+        {
+            Debug.LogWarning($"[GameManager] Broadcast error: {message}");
+            OnErrorReceived?.Invoke(message);
+        }
+
+        [ClientRpc]
+        private void RpcShowReport(string filePath)
+        {
+            Debug.Log($"[GameManager] Report received: {filePath}");
+            OnReportGenerated?.Invoke(filePath);
         }
 
         public CarState GetCarState()

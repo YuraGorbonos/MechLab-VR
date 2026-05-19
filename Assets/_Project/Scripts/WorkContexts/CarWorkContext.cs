@@ -20,8 +20,8 @@ namespace SkillForge.WorkContexts
     public class CarWorkContext : IWorkContext
     {
         private CarState _state;
-        private readonly Dictionary<string, PartState> _parts;
-        private readonly HashSet<string> _diagnosedSubsystems;
+        private readonly Dictionary<string, PartState> _parts = new Dictionary<string, PartState>();
+        private readonly HashSet<string> _diagnosedSubsystems = new HashSet<string>();
 
         public event Action OnWorkStateChanged;
 

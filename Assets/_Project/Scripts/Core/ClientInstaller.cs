@@ -1,6 +1,7 @@
 using Zenject;
 using SkillForge.VR;
 using SkillForge.UI;
+using SkillForge.Networking;
 
 namespace SkillForge.Core
 {
@@ -12,6 +13,8 @@ namespace SkillForge.Core
         public AudioFeedback audioFeedback;
         public SessionEndScreen sessionEndScreen;
         public PlayerController playerController;
+        public DebugClientUI debugClientUI;
+        public IntentionSender intentionSender;
 
         public override void InstallBindings()
         {
@@ -29,6 +32,12 @@ namespace SkillForge.Core
 
             if (playerController != null)
                 Container.Bind<PlayerController>().FromInstance(playerController).AsSingle();
+
+            if (debugClientUI != null)
+                Container.Bind<DebugClientUI>().FromInstance(debugClientUI).AsSingle();
+
+            if (intentionSender != null)
+                Container.Bind<IntentionSender>().FromInstance(intentionSender).AsSingle();
         }
     }
 }

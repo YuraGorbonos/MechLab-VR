@@ -1,7 +1,9 @@
+﻿using System;
 using System.Collections.Generic;
 using Mirror;
 using SkillForge.Core;
 using SkillForge.Players;
+using SkillForge.UI;
 using UnityEngine;
 using Zenject;
 
@@ -10,6 +12,12 @@ namespace SkillForge.Networking
     public class CustomNetworkManager : NetworkManager
     {
         [Inject] private IPlayerManager _playerManager;
+        [Inject] private GameManager _gameManager;
+
+        public ServerUI serverUI;
+
+        public event Action<int> OnPlayerJoined;
+        public event Action<int> OnPlayerLeft;
 
         private readonly Dictionary<int, HashSet<string>> _playerObjects;
 
@@ -26,6 +34,8 @@ namespace SkillForge.Networking
             _playerObjects[playerId] = new HashSet<string>();
 
             Debug.Log($"[CustomNetworkManager] Player {playerId} connected.");
+            OnPlayerJoined?.Invoke(playerId);
+            serverUI?.AddLog($"Player {playerId} connected.");
         }
 
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
@@ -45,6 +55,8 @@ namespace SkillForge.Networking
             _playerObjects.Remove(playerId);
 
             Debug.Log($"[CustomNetworkManager] Player {playerId} disconnected.");
+            OnPlayerLeft?.Invoke(playerId);
+            serverUI?.AddLog($"Player {playerId} disconnected.");
 
             base.OnServerDisconnect(conn);
         }
@@ -52,14 +64,16 @@ namespace SkillForge.Networking
         [Server]
         public void StartSession(SessionConfig config)
         {
-            var gameManager = FindObjectOfType<GameManager>();
-            if (gameManager != null)
+            if (_gameManager != null)
             {
-                gameManager.StartSession(config);
+                _gameManager.StartSession(config);
+                serverUI?.UpdateSessionState(true);
+                serverUI?.AddLog($"Session started: {config.scenarioId} ({config.mode})");
             }
             else
             {
-                Debug.LogError("[CustomNetworkManager] GameManager not found in scene.");
+                Debug.LogError("[CustomNetworkManager] GameManager not found.");
+                serverUI?.AddLog("Error: GameManager not found.");
             }
         }
     }

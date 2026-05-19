@@ -4,7 +4,7 @@
 - **Проект:** MechLab VR – VR-симулятор диагностики и ремонта автомобиля (образовательный).
 - **Платформа:** Meta Quest 2 (Android), ПК-VR.
 - **Режимы:** одиночный / мультиплеер (до 2 игроков), обучение / экзамен (экзамен в будущем).
-- **Стек:** Unity 6.3 LTS (URP, VR Template), Mirror (сеть), Zenject (DI), QuestPDF (отчёты).
+- **Стек:** Unity 6.3 LTS (URP, VR Template), Mirror (сеть), Zenject (DI), HTML-отчёты (System.IO + встроенный браузер).
 
 ## Архитектурный неймспейс – SkillForge
 - `SkillForge.Core` – базовые интерфейсы и абстракции.
@@ -83,4 +83,10 @@ public interface IHighlightService
 public interface IDiagnosticService
 {
     DiagnosticResult Diagnose(string subsystem, CarState state);
+}
+
+public interface IReportGenerator
+{
+    string GenerateHtml(SessionReport report); // возвращает путь к .html
+    void OpenReport(string filePath);          // открывает в браузере
 }
