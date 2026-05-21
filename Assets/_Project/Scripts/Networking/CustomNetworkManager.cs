@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using Mirror;
 using SkillForge.Core;
-using SkillForge.Players;
 using SkillForge.UI;
 using UnityEngine;
 using Zenject;
@@ -11,13 +10,17 @@ namespace SkillForge.Networking
 {
     public class CustomNetworkManager : NetworkManager
     {
-        [Inject] private IPlayerManager _playerManager;
-        [Inject] private GameManager _gameManager;
+        public event Action<int> OnPlayerJoined;
+
+        public event Action<int> OnPlayerLeft;
 
         public ServerUI serverUI;
 
-        public event Action<int> OnPlayerJoined;
-        public event Action<int> OnPlayerLeft;
+        [Inject]
+        private IPlayerManager _playerManager;
+
+        [Inject]
+        private GameManager _gameManager;
 
         private readonly Dictionary<int, HashSet<string>> _playerObjects;
 
@@ -32,6 +35,11 @@ namespace SkillForge.Networking
 
             int playerId = conn.connectionId;
             _playerObjects[playerId] = new HashSet<string>();
+
+            if (_gameManager != null && _gameManager.IsSessionActive)
+            {
+                conn.Send(new GameNetworkMessage { type = "session_state", payload = "1" });
+            }
 
             Debug.Log($"[CustomNetworkManager] Player {playerId} connected.");
             OnPlayerJoined?.Invoke(playerId);

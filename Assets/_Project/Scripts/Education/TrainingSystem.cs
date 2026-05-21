@@ -8,6 +8,8 @@ namespace SkillForge.Education
 {
     public class TrainingSystem : IEducationModule
     {
+        public event Action<ScenarioStep> OnStepChanged;
+
         public ScenarioData DefaultScenario;
 
         private ScenarioConfig _config;
@@ -17,8 +19,6 @@ namespace SkillForge.Education
         private float _startTime;
         private IActionLogger _actionLogger;
 
-        public event Action<ScenarioStep> OnStepChanged;
-
         public TrainingSystem()
         {
             _completedSteps = new HashSet<string>();
@@ -27,25 +27,25 @@ namespace SkillForge.Education
             _startTime = Time.time;
         }
 
-        public void SetActionLogger(IActionLogger logger)
-        {
-            _actionLogger = logger;
-        }
-
         public void Initialize(ScenarioConfig config)
         {
-            if ((config.steps == null || config.steps.Length == 0))
+            if (config.steps == null || config.steps.Length == 0)
             {
                 ScenarioData data = DefaultScenario;
 
                 if (data == null && !string.IsNullOrEmpty(config.scenarioId))
+                {
                     data = Resources.Load<ScenarioData>($"Scenarios/Data/{config.scenarioId}");
+                }
 
                 if (data != null)
                 {
                     config.steps = data.steps;
+
                     if (string.IsNullOrEmpty(config.scenarioId))
+                    {
                         config.scenarioId = data.name;
+                    }
                 }
             }
 
@@ -60,10 +60,14 @@ namespace SkillForge.Education
         public ScenarioStep GetCurrentStep()
         {
             if (_config == null || _config.steps == null || _config.steps.Length == 0)
+            {
                 return null;
+            }
 
             if (_currentStepIndex >= _config.steps.Length)
+            {
                 return null;
+            }
 
             return _config.steps[_currentStepIndex];
         }
@@ -76,21 +80,26 @@ namespace SkillForge.Education
         public void OnActionLogged(Intention intent, bool success, string errorCode)
         {
             var currentStep = GetCurrentStep();
+
             var logEntry = new ActionLogEntry
-            {
-                timestamp = Time.time - _startTime,
-                playerId = intent.playerId,
-                intentType = intent.intentType,
-                targetObject = intent.targetObject,
-                stepId = currentStep?.stepId,
-                success = success,
-                errorCode = errorCode
-            };
+                           {
+                               timestamp = Time.time - _startTime,
+                               playerId = intent.playerId,
+                               intentType = intent.intentType,
+                               targetObject = intent.targetObject,
+                               stepId = currentStep?.stepId,
+                               success = success,
+                               errorCode = errorCode
+                           };
 
             _actionLog.Add(logEntry);
             _actionLogger?.Log(intent, success, errorCode);
+        }
 
-            if (success && currentStep != null)
+        public void MarkCurrentStepCompleted()
+        {
+            var currentStep = GetCurrentStep();
+            if (currentStep != null)
             {
                 _completedSteps.Add(currentStep.stepId);
             }
@@ -99,7 +108,9 @@ namespace SkillForge.Education
         public void AdvanceStep()
         {
             if (_config == null || _config.steps == null)
+            {
                 return;
+            }
 
             _currentStepIndex++;
 
@@ -112,12 +123,16 @@ namespace SkillForge.Education
         public bool AllStepsCompleted()
         {
             if (_config == null || _config.steps == null)
+            {
                 return false;
+            }
 
             foreach (var step in _config.steps)
             {
                 if (!step.isOptional && !_completedSteps.Contains(step.stepId))
+                {
                     return false;
+                }
             }
 
             return true;
@@ -131,37 +146,44 @@ namespace SkillForge.Education
             var grade = score >= 90f ? "A" : score >= 75f ? "B" : score >= 60f ? "C" : score >= 40f ? "D" : "F";
 
             var stepResults = new List<StepResult>();
+
             if (_config?.steps != null)
             {
                 foreach (var step in _config.steps)
                 {
                     var completed = _completedSteps.Contains(step.stepId);
                     var stepErrors = _actionLog.Count(e => e.stepId == step.stepId && !e.success);
+
                     stepResults.Add(new StepResult
-                    {
-                        stepId = step.stepId,
-                        instruction = step.instruction,
-                        completed = completed,
-                        errorCount = stepErrors
-                    });
+                                    {
+                                        stepId = step.stepId,
+                                        instruction = step.instruction,
+                                        completed = completed,
+                                        errorCount = stepErrors
+                                    });
                 }
             }
 
             var report = new SessionReport
-            {
-                scenarioId = _config?.scenarioId ?? string.Empty,
-                mode = _config?.mode ?? SessionMode.Training,
-                durationSeconds = Time.time - _startTime,
-                totalSteps = _config?.steps?.Length ?? 0,
-                completedSteps = _completedSteps.Count,
-                skippedSteps = 0,
-                actionLog = new List<ActionLogEntry>(_actionLog),
-                stepResults = stepResults,
-                score = score,
-                grade = grade
-            };
+                         {
+                             scenarioId = _config?.scenarioId ?? string.Empty,
+                             mode = _config?.mode ?? SessionMode.Training,
+                             durationSeconds = Time.time - _startTime,
+                             totalSteps = _config?.steps?.Length ?? 0,
+                             completedSteps = _completedSteps.Count,
+                             skippedSteps = 0,
+                             actionLog = new List<ActionLogEntry>(_actionLog),
+                             stepResults = stepResults,
+                             score = score,
+                             grade = grade
+                         };
 
             return report;
+        }
+
+        public void SetActionLogger(IActionLogger logger)
+        {
+            _actionLogger = logger;
         }
     }
 }

@@ -1,12 +1,11 @@
-using Zenject;
-using SkillForge.Core;
 using SkillForge.Education;
-using SkillForge.WorkContexts;
-using SkillForge.Validation;
-using SkillForge.Players;
 using SkillForge.Highlight;
 using SkillForge.Networking;
+using SkillForge.Players;
 using SkillForge.UI;
+using SkillForge.Validation;
+using SkillForge.WorkContexts;
+using Zenject;
 
 namespace SkillForge.Core
 {
@@ -34,13 +33,19 @@ namespace SkillForge.Core
             Container.Bind<IReportGenerator>().To<ReportGenerator>().AsSingle();
 
             if (customNetworkManager != null)
+            {
                 Container.Bind<CustomNetworkManager>().FromInstance(customNetworkManager).AsSingle();
+            }
 
             if (gameManager != null)
+            {
                 Container.Bind<GameManager>().FromInstance(gameManager).AsSingle();
+            }
 
             if (serverUI != null)
+            {
                 Container.Bind<ServerUI>().FromInstance(serverUI).AsSingle();
+            }
         }
     }
 }

@@ -11,12 +11,16 @@ namespace SkillForge.Scenarios.Conditions
         public override bool IsMet(IWorkContext context)
         {
             if (partIds == null || partIds.Length == 0)
+            {
                 return false;
+            }
 
             foreach (var partId in partIds)
             {
                 if (context.GetPartState(partId) != PartState.Removed)
+                {
                     return false;
+                }
             }
 
             return true;

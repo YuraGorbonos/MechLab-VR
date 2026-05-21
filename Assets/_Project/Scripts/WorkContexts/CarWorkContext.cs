@@ -19,30 +19,15 @@ namespace SkillForge.WorkContexts
 
     public class CarWorkContext : IWorkContext
     {
-        private CarState _state;
-        private readonly Dictionary<string, PartState> _parts = new Dictionary<string, PartState>();
-        private readonly HashSet<string> _diagnosedSubsystems = new HashSet<string>();
-
         public event Action OnWorkStateChanged;
+
+        private CarState _state;
+        private readonly Dictionary<string, PartState> _parts = new();
+        private readonly HashSet<string> _diagnosedSubsystems = new();
 
         public CarWorkContext()
         {
             ResetState();
-        }
-
-        private void ResetState()
-        {
-            _state = new CarState
-            {
-                engineRunning = false,
-                oilLevel = 1.0f,
-                brakeFluidLevel = 1.0f,
-                timingBeltOk = true,
-                batteryCharged = true
-            };
-
-            _parts.Clear();
-            _diagnosedSubsystems.Clear();
         }
 
         public ValidationResult ValidateAction(Intention intent, ScenarioStep currentStep)
@@ -89,9 +74,6 @@ namespace SkillForge.WorkContexts
                 case "charge_battery":
                     _state.batteryCharged = true;
                     break;
-
-                default:
-                    break;
             }
 
             OnWorkStateChanged?.Invoke();
@@ -100,7 +82,9 @@ namespace SkillForge.WorkContexts
         public bool CheckCondition(StepCondition condition)
         {
             if (condition == null)
+            {
                 return true;
+            }
 
             return condition.IsMet(this);
         }
@@ -118,17 +102,19 @@ namespace SkillForge.WorkContexts
             {
                 case "brakes":
                     bool brakesOk = _state.brakeFluidLevel >= 0.5f;
+
                     return new DiagnosticResult(subsystem, brakesOk,
-                        brakesOk ? "Brake system OK" : $"Low brake fluid: {_state.brakeFluidLevel:F1}");
+                                                brakesOk ? "Brake system OK" : $"Low brake fluid: {_state.brakeFluidLevel:F1}");
 
                 case "engine":
                     bool engineOk = _state.oilLevel >= 0.3f && _state.timingBeltOk;
+
                     return new DiagnosticResult(subsystem, engineOk,
-                        engineOk ? "Engine OK" : $"Oil: {_state.oilLevel:F1}, Timing belt: {_state.timingBeltOk}");
+                                                engineOk ? "Engine OK" : $"Oil: {_state.oilLevel:F1}, Timing belt: {_state.timingBeltOk}");
 
                 case "battery":
                     return new DiagnosticResult(subsystem, _state.batteryCharged,
-                        _state.batteryCharged ? "Battery charged" : "Battery discharged");
+                                                _state.batteryCharged ? "Battery charged" : "Battery discharged");
 
                 default:
                     return new DiagnosticResult(subsystem, true, $"Unknown subsystem: {subsystem}");
@@ -140,28 +126,18 @@ namespace SkillForge.WorkContexts
             return _parts.TryGetValue(partId, out var state) ? state : PartState.Default;
         }
 
-        public CarState GetState()
-        {
-            return _state;
-        }
-
-        public bool WasSubsystemDiagnosed(string subsystem)
-        {
-            return _diagnosedSubsystems.Contains(subsystem);
-        }
-
         public string SerializeState()
         {
             var data = new CarStateData
-            {
-                engineRunning = _state.engineRunning,
-                oilLevel = _state.oilLevel,
-                brakeFluidLevel = _state.brakeFluidLevel,
-                timingBeltOk = _state.timingBeltOk,
-                batteryCharged = _state.batteryCharged,
-                parts = new Dictionary<string, int>(),
-                diagnosedSubsystems = new List<string>(_diagnosedSubsystems)
-            };
+                       {
+                           engineRunning = _state.engineRunning,
+                           oilLevel = _state.oilLevel,
+                           brakeFluidLevel = _state.brakeFluidLevel,
+                           timingBeltOk = _state.timingBeltOk,
+                           batteryCharged = _state.batteryCharged,
+                           parts = new Dictionary<string, int>(),
+                           diagnosedSubsystems = new List<string>(_diagnosedSubsystems)
+                       };
 
             foreach (var kvp in _parts)
             {
@@ -174,22 +150,28 @@ namespace SkillForge.WorkContexts
         public void DeserializeState(string json)
         {
             if (string.IsNullOrEmpty(json))
+            {
                 return;
+            }
 
             var data = JsonUtility.FromJson<CarStateData>(json);
+
             if (data == null)
+            {
                 return;
+            }
 
             _state = new CarState
-            {
-                engineRunning = data.engineRunning,
-                oilLevel = data.oilLevel,
-                brakeFluidLevel = data.brakeFluidLevel,
-                timingBeltOk = data.timingBeltOk,
-                batteryCharged = data.batteryCharged
-            };
+                     {
+                         engineRunning = data.engineRunning,
+                         oilLevel = data.oilLevel,
+                         brakeFluidLevel = data.brakeFluidLevel,
+                         timingBeltOk = data.timingBeltOk,
+                         batteryCharged = data.batteryCharged
+                     };
 
             _parts.Clear();
+
             if (data.parts != null)
             {
                 foreach (var kvp in data.parts)
@@ -199,6 +181,7 @@ namespace SkillForge.WorkContexts
             }
 
             _diagnosedSubsystems.Clear();
+
             if (data.diagnosedSubsystems != null)
             {
                 foreach (var sub in data.diagnosedSubsystems)
@@ -206,6 +189,31 @@ namespace SkillForge.WorkContexts
                     _diagnosedSubsystems.Add(sub);
                 }
             }
+        }
+
+        public CarState GetState()
+        {
+            return _state;
+        }
+
+        public bool WasSubsystemDiagnosed(string subsystem)
+        {
+            return _diagnosedSubsystems.Contains(subsystem);
+        }
+
+        private void ResetState()
+        {
+            _state = new CarState
+                     {
+                         engineRunning = false,
+                         oilLevel = 1.0f,
+                         brakeFluidLevel = 1.0f,
+                         timingBeltOk = true,
+                         batteryCharged = true
+                     };
+
+            _parts.Clear();
+            _diagnosedSubsystems.Clear();
         }
     }
 }

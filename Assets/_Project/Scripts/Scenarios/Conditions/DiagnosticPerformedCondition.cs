@@ -11,7 +11,9 @@ namespace SkillForge.Scenarios.Conditions
         public override bool IsMet(IWorkContext context)
         {
             if (string.IsNullOrEmpty(subsystem))
+            {
                 return false;
+            }
 
             if (context is WorkContexts.CarWorkContext carContext)
             {

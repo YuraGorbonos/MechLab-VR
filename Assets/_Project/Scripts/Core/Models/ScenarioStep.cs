@@ -1,5 +1,3 @@
-using UnityEngine;
-
 namespace SkillForge.Core
 {
     [System.Serializable]

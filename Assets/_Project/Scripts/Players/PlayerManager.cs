@@ -15,12 +15,16 @@ namespace SkillForge.Players
         public bool TryAcquireObject(int playerId, string objectId)
         {
             if (string.IsNullOrEmpty(objectId))
+            {
                 return false;
+            }
 
             if (_occupiedObjects.TryGetValue(objectId, out var existingPlayerId))
             {
                 if (existingPlayerId == playerId)
+                {
                     return true;
+                }
 
                 return false;
             }

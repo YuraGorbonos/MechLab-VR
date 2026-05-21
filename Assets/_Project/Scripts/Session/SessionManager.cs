@@ -1,15 +1,12 @@
 using SkillForge.Core;
-using SkillForge.Education;
-using SkillForge.WorkContexts;
-using SkillForge.Validation;
-using SkillForge.Players;
-using SkillForge.Highlight;
 using UnityEngine;
 
 namespace SkillForge.Session
 {
     public class SessionManager
     {
+        public bool IsSessionActive => _isSessionActive;
+
         private IEducationModule _educationModule;
         private IWorkContext _workContext;
         private IValidationService _validationService;
@@ -19,8 +16,6 @@ namespace SkillForge.Session
 
         private SessionConfig _sessionConfig;
         private bool _isSessionActive;
-
-        public bool IsSessionActive => _isSessionActive;
 
         public SessionManager(
             IEducationModule educationModule,
@@ -44,11 +39,11 @@ namespace SkillForge.Session
             _isSessionActive = true;
 
             _educationModule.Initialize(new ScenarioConfig
-            {
-                scenarioId = config.scenarioId,
-                mode = config.mode,
-                steps = null
-            });
+                                        {
+                                            scenarioId = config.scenarioId,
+                                            mode = config.mode,
+                                            steps = null
+                                        });
 
             Debug.Log($"[SessionManager] Session started: {config.scenarioId} | Mode: {config.mode} | Players: {config.playerCount}");
         }
@@ -56,7 +51,9 @@ namespace SkillForge.Session
         public void EndSession()
         {
             if (!_isSessionActive)
+            {
                 return;
+            }
 
             var report = _educationModule.GenerateReport();
             _isSessionActive = false;
@@ -75,6 +72,7 @@ namespace SkillForge.Session
             var currentStep = _educationModule.GetCurrentStep();
 
             var validationResult = _validationService.Validate(intent, currentStep, _workContext);
+
             if (validationResult != ValidationResult.Success)
             {
                 _educationModule.OnActionLogged(intent, false, validationResult.ToString());
@@ -92,10 +90,29 @@ namespace SkillForge.Session
             return ValidationResult.Success;
         }
 
-        public IEducationModule GetEducationModule() => _educationModule;
-        public IWorkContext GetWorkContext() => _workContext;
-        public IPlayerManager GetPlayerManager() => _playerManager;
-        public IHighlightService GetHighlightService() => _highlightService;
-        public IDiagnosticService GetDiagnosticService() => _diagnosticService;
+        public IEducationModule GetEducationModule()
+        {
+            return _educationModule;
+        }
+
+        public IWorkContext GetWorkContext()
+        {
+            return _workContext;
+        }
+
+        public IPlayerManager GetPlayerManager()
+        {
+            return _playerManager;
+        }
+
+        public IHighlightService GetHighlightService()
+        {
+            return _highlightService;
+        }
+
+        public IDiagnosticService GetDiagnosticService()
+        {
+            return _diagnosticService;
+        }
     }
 }

@@ -11,6 +11,7 @@ namespace SkillForge.Core
     public interface IHighlightService
     {
         void SetHighlight(string targetId, HighlightType type);
+
         void ClearHighlights();
     }
 }

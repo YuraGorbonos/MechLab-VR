@@ -1,16 +1,16 @@
-using UnityEngine;
 using SkillForge.Core;
+using UnityEngine;
 
 namespace SkillForge.Education
 {
     public class ScenarioProvider : MonoBehaviour
     {
-        [SerializeField]
-        private ScenarioData _defaultScenario;
-
         // TODO: assign in Inspector
 
         public ScenarioData DefaultScenario => _defaultScenario;
+
+        [SerializeField]
+        private ScenarioData _defaultScenario;
 
         public ScenarioConfig LoadScenario(ScenarioData data)
         {
@@ -27,11 +27,11 @@ namespace SkillForge.Education
             }
 
             return new ScenarioConfig
-            {
-                scenarioId = data.name,
-                steps = data.steps,
-                mode = SessionMode.Training
-            };
+                   {
+                       scenarioId = data.name,
+                       steps = data.steps,
+                       mode = SessionMode.Training
+                   };
         }
     }
 }

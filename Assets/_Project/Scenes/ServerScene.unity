@@ -485,8 +485,8 @@ MonoBehaviour:
   ReliableMaxMessageSize: 297433
   UnreliableMaxMessageSize: 1194
   debugLog: 1
-  statisticsGUI: 1
-  statisticsLog: 1
+  statisticsGUI: 0
+  statisticsLog: 0
 --- !u!1 &188186765
 GameObject:
   m_ObjectHideFlags: 0

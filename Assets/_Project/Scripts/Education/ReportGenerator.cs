@@ -54,6 +54,7 @@ namespace SkillForge.Education
 
             sb.AppendLine("<h2>Шаги</h2>");
             sb.AppendLine("<table><tr><th>Step ID</th><th>Инструкция</th><th>Выполнен</th><th>Ошибки</th></tr>");
+
             if (report.stepResults != null)
             {
                 foreach (var step in report.stepResults)
@@ -63,19 +64,24 @@ namespace SkillForge.Education
                     sb.AppendLine($"<tr class='{cls}'><td>{HtmlEscape(step.stepId)}</td><td>{HtmlEscape(step.instruction)}</td><td>{done}</td><td>{step.errorCount}</td></tr>");
                 }
             }
+
             sb.AppendLine("</table>");
 
             sb.AppendLine("<h2>Журнал действий</h2>");
             sb.AppendLine("<table><tr><th>Время</th><th>Действие</th><th>Объект</th><th>Игрок</th><th>Успех</th><th>Ошибка</th></tr>");
+
             if (report.actionLog != null)
             {
                 foreach (var entry in report.actionLog)
                 {
                     var cls = entry.success ? "action-ok" : "action-err";
                     var ok = entry.success ? "✓" : "✗";
-                    sb.AppendLine($"<tr class='{cls}'><td>{entry.timestamp:F1}</td><td>{HtmlEscape(entry.intentType)}</td><td>{HtmlEscape(entry.targetObject)}</td><td>P{entry.playerId}</td><td>{ok}</td><td>{HtmlEscape(entry.errorCode)}</td></tr>");
+
+                    sb.AppendLine(
+                        $"<tr class='{cls}'><td>{entry.timestamp:F1}</td><td>{HtmlEscape(entry.intentType)}</td><td>{HtmlEscape(entry.targetObject)}</td><td>P{entry.playerId}</td><td>{ok}</td><td>{HtmlEscape(entry.errorCode)}</td></tr>");
                 }
             }
+
             sb.AppendLine("</table>");
 
             sb.AppendLine("<p style='color:#888;font-size:12px;margin-top:40px'>");
@@ -87,7 +93,11 @@ namespace SkillForge.Education
 
         private static string HtmlEscape(string s)
         {
-            if (string.IsNullOrEmpty(s)) return "-";
+            if (string.IsNullOrEmpty(s))
+            {
+                return "-";
+            }
+
             return s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
         }
     }

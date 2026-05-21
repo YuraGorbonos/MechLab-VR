@@ -8,16 +8,23 @@ namespace SkillForge.UI
 {
     public class SessionEndScreen : MonoBehaviour
     {
-        [SerializeField] private GameObject _panel;
-        [SerializeField] private TMP_Text _reportText;
-        [SerializeField] private Button _openReportButton;
+        [SerializeField]
+        private GameObject _panel;
+
+        [SerializeField]
+        private TMP_Text _reportText;
+
+        [SerializeField]
+        private Button _openReportButton;
 
         private string _lastReportPath;
 
         private void Start()
         {
             if (_panel != null)
+            {
                 _panel.SetActive(false);
+            }
 
             if (_openReportButton != null)
             {
@@ -33,18 +40,36 @@ namespace SkillForge.UI
             GameManager.OnReportGenerated -= OnReportGenerated;
         }
 
+        public void ShowReport(SessionReport report)
+        {
+            if (_reportText != null)
+            {
+                _reportText.text = $"Scenario: {report.scenarioId}\n" +
+                                   $"Score: {report.score:F1}%\n" +
+                                   $"Grade: {report.grade}\n" +
+                                   $"Steps: {report.completedSteps}/{report.totalSteps}\n" +
+                                   $"Duration: {report.durationSeconds:F0}s";
+            }
+        }
+
         private void OnReportGenerated(string filePath)
         {
             _lastReportPath = filePath;
 
             if (_reportText != null)
+            {
                 _reportText.text = $"Отчёт сохранён:\n{filePath}";
+            }
 
             if (_panel != null)
+            {
                 _panel.SetActive(true);
+            }
 
             if (_openReportButton != null)
+            {
                 _openReportButton.gameObject.SetActive(true);
+            }
         }
 
         private void OnOpenReportClicked()
@@ -53,16 +78,6 @@ namespace SkillForge.UI
             {
                 Application.OpenURL("file://" + _lastReportPath);
             }
-        }
-
-        public void ShowReport(SessionReport report)
-        {
-            if (_reportText != null)
-                _reportText.text = $"Scenario: {report.scenarioId}\n" +
-                                   $"Score: {report.score:F1}%\n" +
-                                   $"Grade: {report.grade}\n" +
-                                   $"Steps: {report.completedSteps}/{report.totalSteps}\n" +
-                                   $"Duration: {report.durationSeconds:F0}s";
         }
     }
 }

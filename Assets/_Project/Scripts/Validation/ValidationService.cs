@@ -8,7 +8,9 @@ namespace SkillForge.Validation
         public ValidationResult Validate(Intention intent, ScenarioStep currentStep, IWorkContext workContext)
         {
             if (currentStep == null)
+            {
                 return ValidationResult.StepNotActive;
+            }
 
             if (!string.IsNullOrEmpty(intent.tool) &&
                 currentStep.requiredToolIds != null &&
