@@ -1,0 +1,4 @@
+﻿Garage.glb and Saloon.glb are CC0 1.0 from https://3dassets.dev
+Garage: Car Repair Garage and MOT Workshop starter scene, https://cdn.3dassets.dev/assets/34046/v1/model.glb
+Saloon: Four-door saloon, https://cdn.3dassets.dev/assets/32490/v1/model.glb
+License: https://creativecommons.org/publicdomain/zero/1.0/

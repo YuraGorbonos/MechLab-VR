@@ -1,0 +1,10 @@
+[plugins."superpowers@mechlab-vr"]
+enabled = true
+
+[mcp_servers.code-review-graph]
+command = "uvx"
+args = ["code-review-graph==2.4.0", "serve", "--repo", "."]
+startup_timeout_sec = 60
+
+[mcp_servers.code-review-graph.env]
+PYTHONUTF8 = "1"

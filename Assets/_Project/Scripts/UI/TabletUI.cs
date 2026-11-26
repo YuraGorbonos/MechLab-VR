@@ -1,3 +1,4 @@
+using Mirror;
 using SkillForge.Networking;
 using System.Collections;
 using TMPro;
@@ -21,12 +22,15 @@ namespace SkillForge.UI
                 _errorText.gameObject.SetActive(false);
             }
 
-            GameManager.OnErrorReceived += OnErrorReceived;
+            NetworkClient.RegisterHandler<GameNetworkMessage>(OnGameNetworkMessage);
         }
 
         private void OnDestroy()
         {
-            GameManager.OnErrorReceived -= OnErrorReceived;
+            if (NetworkClient.isConnected)
+            {
+                NetworkClient.UnregisterHandler<GameNetworkMessage>();
+            }
         }
 
         public void UpdateUI(string instruction, int stepIndex)
@@ -65,9 +69,15 @@ namespace SkillForge.UI
             _errorCoroutine = null;
         }
 
-        private void OnErrorReceived(string message)
+        private void OnGameNetworkMessage(GameNetworkMessage msg)
         {
-            DisplayError(message);
+            switch (msg.type)
+            {
+                case "error":
+                    DisplayError(msg.payload);
+                    break;
+            }
         }
+
     }
 }

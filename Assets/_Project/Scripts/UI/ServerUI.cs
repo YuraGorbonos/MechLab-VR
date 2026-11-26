@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using kcp2k;
 using Mirror;
@@ -88,30 +88,51 @@ namespace SkillForge.UI
             }
         }
 
-        public void OnStartServerClicked()
-        {
-            if (_networkManager == null)
-            {
-                AddLog("Error: NetworkManager not found.");
-                return;
-            }
+public void OnStartServerClicked()
+{
+    if (_networkManager == null)
+    {
+        AddLog("Error: NetworkManager not found.");
+        return;
+    }
 
-            _networkManager.StartServer();
+    if (!NetworkServer.active)
+    {
+        _networkManager.StartHost();
+    }
 
-            if (NetworkServer.active)
-            {
-                AddLog("Server started.");
+    if (!NetworkServer.active)
+    {
+        AddLog("Error: Host failed to start.");
+        return;
+    }
 
-                if (Transport.active is KcpTransport kcp)
-                {
-                    AddLog($"KCP transport on port {kcp.Port}");
-                }
-            }
-            else
-            {
-                AddLog("Error: Server failed to start.");
-            }
-        }
+    AddLog("Host started.");
+
+    if (Transport.active is KcpTransport kcp)
+    {
+        AddLog($"KCP transport on port {kcp.Port}");
+    }
+
+    if (!UnityEngine.SceneManagement.SceneManager.GetSceneByName("ClientScene").isLoaded)
+    {
+        StartCoroutine(LoadClientAndStartSession());
+    }
+}
+
+private System.Collections.IEnumerator LoadClientAndStartSession()
+{
+    var load = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync("ClientScene", UnityEngine.SceneManagement.LoadSceneMode.Additive);
+    while (load != null && !load.isDone)
+    {
+        yield return null;
+    }
+
+    yield return null;
+    AddLog("Client view loaded.");
+    OnStartSessionClicked();
+}
+
 
         public void OnStopServerClicked()
         {

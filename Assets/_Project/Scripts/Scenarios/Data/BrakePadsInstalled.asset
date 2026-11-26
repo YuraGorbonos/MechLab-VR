@@ -14,4 +14,3 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillForge.Scenarios.Conditions.PartInstalledCondition
   partIds:
   - brake_pad_front_left
-  - brake_pad_front_right

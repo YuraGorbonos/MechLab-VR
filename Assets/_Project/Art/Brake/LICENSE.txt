@@ -1,0 +1,4 @@
+﻿Brake assembly derived from "Brake Disc" by Grab3D, Cozy Car Parts & Garage Kit.
+Source: https://grab3d.com/models/vehicles/brake-disc/
+License: CC0 1.0 Universal. https://creativecommons.org/publicdomain/zero/1.0/
+The original mesh was separated into a disc, a caliper and two pads. Two mounting bolts were added for the training scenario.

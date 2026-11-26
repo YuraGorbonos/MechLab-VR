@@ -29,6 +29,21 @@ namespace SkillForge.Networking
             _playerObjects = new Dictionary<int, HashSet<string>>();
         }
 
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+
+            NetworkServer.RegisterHandler<IntentionMessage>(OnServerReceiveIntention);
+            NetworkServer.RegisterHandler<EndSessionMessage>(OnServerReceiveEndSession);
+        }
+
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+
+            // UpdateUIMessage handler is registered in ClientMessageHandler
+        }
+
         public override void OnServerAddPlayer(NetworkConnectionToClient conn)
         {
             base.OnServerAddPlayer(conn);
@@ -84,5 +99,21 @@ namespace SkillForge.Networking
                 serverUI?.AddLog("Error: GameManager not found.");
             }
         }
+
+        private void OnServerReceiveIntention(NetworkConnectionToClient conn, IntentionMessage msg)
+        {
+            if (_gameManager == null) return;
+
+            msg.intention.playerId = conn.connectionId;
+            _gameManager.ProcessIntention(msg.intention);
+        }
+
+        private void OnServerReceiveEndSession(NetworkConnectionToClient conn, EndSessionMessage msg)
+        {
+            if (_gameManager == null) return;
+
+            _gameManager.RequestEndSession(conn);
+        }
+
     }
 }

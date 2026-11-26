@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using Mirror;
 using SkillForge.Core;
 using SkillForge.Networking;
@@ -70,29 +70,34 @@ namespace SkillForge.UI
         [SerializeField]
         private Button _btnEndSession;
 
-        private IntentionSender _intentionSender;
         private int _playerId = -1;
 
-        private void Start()
-        {
-            if (_connectButton != null)
-            {
-                _connectButton.onClick.AddListener(OnConnectClicked);
-            }
+private void Start()
+{
+    if (_connectButton != null)
+    {
+        _connectButton.onClick.AddListener(OnConnectClicked);
+    }
 
-            SetupActionButtons();
+    SetupActionButtons();
 
-            if (_actionPanel != null)
-            {
-                _actionPanel.SetActive(false);
-            }
+    if (_actionPanel != null)
+    {
+        _actionPanel.SetActive(false);
+    }
 
-            UpdateStatus("Not connected.");
-            GameManager.OnErrorReceived += OnServerErrorReceived;
-            GameManager.OnActiveSessionChanged += OnSessionActiveChanged;
+    UpdateStatus("Not connected.");
+    GameManager.OnErrorReceived += OnServerErrorReceived;
+    GameManager.OnActiveSessionChanged += OnSessionActiveChanged;
+    NetworkClient.RegisterHandler<GameNetworkMessage>(OnGameNetworkMessage);
+    NetworkClient.RegisterHandler<UpdateUIMessage>(OnUIUpdate);
+}
 
-            NetworkClient.RegisterHandler<GameNetworkMessage>(OnGameNetworkMessage);
-        }
+private void OnUIUpdate(UpdateUIMessage msg)
+{
+    UpdateStatus($"Шаг {msg.stepIndex + 1}: {msg.instruction}");
+}
+
 
         private void OnDestroy()
         {
@@ -110,7 +115,6 @@ namespace SkillForge.UI
             if (_playerId < 0 && NetworkClient.isConnected && NetworkClient.localPlayer != null)
             {
                 _playerId = (int)NetworkClient.localPlayer.netId;
-                _intentionSender = NetworkClient.localPlayer.GetComponent<IntentionSender>();
                 SetPlayerId(_playerId);
             }
         }
@@ -169,7 +173,7 @@ namespace SkillForge.UI
                     ShowError(msg.payload);
                     break;
                 case "report":
-                    Debug.Log($"[DebugClientUI] Report received: {msg.payload}");
+                    UpdateStatus("Отчёт: " + msg.payload);
                     break;
             }
         }
@@ -344,38 +348,31 @@ namespace SkillForge.UI
 
             if (_btnEndSession != null)
             {
-                _btnEndSession.onClick.AddListener(() =>
-                {
-                    if (_intentionSender != null)
-                    {
-                        _intentionSender.CmdRequestEndSession();
-                    }
-                    else
-                    {
-                        ShowError("IntentionSender not found.");
-                    }
-                });
+                _btnEndSession.onClick.AddListener(NetworkMessageSender.SendEndSession);
             }
         }
 
-        private void OnConnectClicked()
-        {
-            var networkManager = NetworkManager.singleton;
+private void OnConnectClicked()
+{
+    if (NetworkClient.isConnected || NetworkServer.active)
+    {
+        UpdateStatus(NetworkClient.isConnected ? "Connected." : "Host is running.");
+        return;
+    }
 
-            if (networkManager == null)
-            {
-                ShowError("NetworkManager not found.");
-                return;
-            }
+    var networkManager = NetworkManager.singleton;
 
-            if (!NetworkClient.isConnected)
-            {
-                Debug.Log($"[DebugClientUI] Starting client, connecting to {networkManager.networkAddress}:{networkManager.GetComponent<Transport>()?.GetType().Name}");
-                networkManager.StartClient();
-                UpdateStatus("Connecting...");
-                StartCoroutine(CheckConnectionTimeout());
-            }
-        }
+    if (networkManager == null)
+    {
+        ShowError("NetworkManager not found.");
+        return;
+    }
+
+    Debug.Log($"[DebugClientUI] Starting client, connecting to {networkManager.networkAddress}");
+    networkManager.StartClient();
+    UpdateStatus("Connecting...");
+    StartCoroutine(CheckConnectionTimeout());
+}
 
         private IEnumerator CheckConnectionTimeout()
         {
@@ -391,25 +388,7 @@ namespace SkillForge.UI
         private void SendIntention(Intention intent)
         {
             Debug.Log($"[DebugClientUI] SendIntention called: type={intent.intentType}, target={intent.targetObject}");
-
-            if (_intentionSender == null)
-            {
-                Debug.LogError("[DebugClientUI] IntentionSender is null!");
-                ShowError("IntentionSender not found.");
-                return;
-            }
-
-            Debug.Log($"[DebugClientUI] IntentionSender isOwned={_intentionSender.isOwned}, isClient={_intentionSender.isClient}");
-
-            if (!_intentionSender.isOwned)
-            {
-                Debug.LogError("[DebugClientUI] IntentionSender not owned by this client.");
-                ShowError("IntentionSender not owned by this client.");
-                return;
-            }
-
-            Debug.Log($"[DebugClientUI] Sending intention to server...");
-            _intentionSender.CmdSendIntention(intent);
+            NetworkMessageSender.SendIntention(intent);
         }
     }
 }

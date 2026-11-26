@@ -7,17 +7,10 @@ namespace SkillForge.VR
 {
     public class PlayerController : MonoBehaviour
     {
-        private IntentionSender _intentionSender;
         private XRDirectInteractor _rightInteractor;
 
         private void Start()
         {
-            _intentionSender = FindObjectOfType<IntentionSender>();
-            if (_intentionSender == null)
-            {
-                Debug.LogError("[PlayerController] IntentionSender not found in scene.");
-            }
-
             _rightInteractor = GetComponentInChildren<XRDirectInteractor>();
             if (_rightInteractor == null)
             {
@@ -25,15 +18,14 @@ namespace SkillForge.VR
             }
         }
 
-        private void Update()
-        {
-            if (_intentionSender == null) return;
-
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
-                OnTriggerPressed();
-            }
-        }
+private void Update()
+{
+    var keyboard = UnityEngine.InputSystem.Keyboard.current;
+    if (keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
+    {
+        OnTriggerPressed();
+    }
+}
 
         private void OnTriggerPressed()
         {
@@ -47,7 +39,7 @@ namespace SkillForge.VR
             if (handler.TryInteract(out var intent))
             {
                 Debug.Log($"[PlayerController] Sending intention: type={intent.intentType}, target={intent.targetObject}, tool={intent.tool}, action={intent.action}");
-                _intentionSender.CmdSendIntention(intent);
+                NetworkMessageSender.SendIntention(intent);
             }
         }
     }

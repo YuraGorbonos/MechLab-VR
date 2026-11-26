@@ -19,6 +19,13 @@
 - `SkillForge.Networking` – Mirror-специфичные компоненты (GameManager, CustomNetworkManager).
 - `SkillForge.Utils` – вспомогательные классы.
 
+## Сетевое взаимодействие (Mirror)
+- Используются **NetworkMessage** для всех клиент→сервер запросов.
+- Классы сообщений: `IntentionMessage`, `EndSessionMessage`.
+- Регистрация: `NetworkClient.RegisterHandler<IntentionMessage>(...)` на клиенте (для ответов), `NetworkServer.RegisterHandler<IntentionMessage>(...)` на сервере.
+- Клиент отправляет сообщение: `NetworkClient.Send(new IntentionMessage { ... })`.
+- GameManager отсутствует на клиенте — весь доступ через `GameManager` только на сервере.
+
 ## Паттерны и стиль кода
 - Архитектурный паттерн: **MVP** (Model-View-Presenter) с пассивной View через Mirror SyncVar/RPC.
 - Внедрение зависимостей: **Zenject**. Два контекста – серверный и клиентский.

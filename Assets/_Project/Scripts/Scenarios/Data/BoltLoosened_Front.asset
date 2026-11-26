@@ -14,4 +14,3 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillForge.Scenarios.Conditions.BoltLoosenedCondition
   boltIds:
   - bolt_caliper_front_left_01
-  - bolt_caliper_front_right_01

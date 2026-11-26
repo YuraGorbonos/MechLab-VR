@@ -110,7 +110,7 @@ namespace SkillForge.Networking
 
             _carStateJson = _workContext.SerializeState();
 
-            RpcUpdateUI(_currentInstruction, _currentStepIndex);
+            SendUIUpdate(_currentInstruction, _currentStepIndex);
 
             Debug.Log($"[GameManager] Session started: {config.scenarioId}");
         }
@@ -153,7 +153,7 @@ namespace SkillForge.Networking
                     var nextStep = _educationModule.GetCurrentStep();
                     _currentInstruction = nextStep?.instruction ?? string.Empty;
 
-                    RpcUpdateUI(_currentInstruction, _currentStepIndex);
+                    SendUIUpdate(_currentInstruction, _currentStepIndex);
 
                     if (_educationModule.AllStepsCompleted())
                     {
@@ -163,12 +163,12 @@ namespace SkillForge.Networking
             }
         }
 
-        [Command(requiresAuthority = false)]
-        public void CmdRequestEndSession(NetworkConnectionToClient sender = null)
+        [Server]
+        public void RequestEndSession(NetworkConnectionToClient sender = null)
         {
             if (!_isSessionActive)
             {
-                Debug.LogWarning("[GameManager] CmdRequestEndSession: no active session.");
+                Debug.LogWarning("[GameManager] RequestEndSession: no active session.");
                 return;
             }
 
@@ -259,14 +259,9 @@ namespace SkillForge.Networking
             NetworkServer.SendToAll(msg);
         }
 
-        [ClientRpc]
-        private void RpcUpdateUI(string instruction, int stepIndex)
+        private void SendUIUpdate(string instruction, int stepIndex)
         {
-            var tabletUI = FindObjectOfType<TabletUI>();
-            if (tabletUI != null)
-            {
-                tabletUI.UpdateUI(instruction, stepIndex);
-            }
+            NetworkServer.SendToAll(new UpdateUIMessage { instruction = instruction, stepIndex = stepIndex });
         }
 
         private void OnWorkContextStateChanged()
