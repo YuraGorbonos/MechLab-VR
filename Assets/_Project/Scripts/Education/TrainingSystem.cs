@@ -33,7 +33,7 @@ namespace SkillForge.Education
             {
                 ScenarioData data = DefaultScenario;
 
-                if (data == null && !string.IsNullOrEmpty(config.scenarioId))
+                if (!string.IsNullOrEmpty(config.scenarioId) && (data == null || data.scenarioId != config.scenarioId))
                 {
                     data = Resources.Load<ScenarioData>($"Scenarios/Data/{config.scenarioId}");
                 }
@@ -44,7 +44,7 @@ namespace SkillForge.Education
 
                     if (string.IsNullOrEmpty(config.scenarioId))
                     {
-                        config.scenarioId = data.name;
+                        config.scenarioId = data.scenarioId;
                     }
                 }
             }

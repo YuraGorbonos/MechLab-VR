@@ -18,6 +18,10 @@ namespace SkillForge.Core
 
         PartState GetPartState(string partId);
 
+        string[] GetRemovedTargetIds();
+
+        void ResetState();
+
         string SerializeState();
 
         void DeserializeState(string json);

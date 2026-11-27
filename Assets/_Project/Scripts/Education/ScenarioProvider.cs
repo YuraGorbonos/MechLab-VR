@@ -1,4 +1,5 @@
 using SkillForge.Core;
+using System.Linq;
 using UnityEngine;
 
 namespace SkillForge.Education
@@ -11,6 +12,22 @@ namespace SkillForge.Education
 
         [SerializeField]
         private ScenarioData _defaultScenario;
+
+        [SerializeField] private ScenarioData[] _additionalScenarios;
+
+        public ScenarioData[] GetScenarios()
+        {
+            return new[] { _defaultScenario }
+                .Concat(_additionalScenarios ?? System.Array.Empty<ScenarioData>())
+                .Where(scenario => scenario != null && !string.IsNullOrEmpty(scenario.scenarioId))
+                .Distinct()
+                .ToArray();
+        }
+
+        public ScenarioData GetScenario(string scenarioId)
+        {
+            return GetScenarios().FirstOrDefault(scenario => scenario.scenarioId == scenarioId);
+        }
 
         public ScenarioConfig LoadScenario(ScenarioData data)
         {
@@ -28,7 +45,7 @@ namespace SkillForge.Education
 
             return new ScenarioConfig
                    {
-                       scenarioId = data.name,
+                       scenarioId = data.scenarioId,
                        steps = data.steps,
                        mode = SessionMode.Training
                    };

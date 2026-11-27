@@ -1,5 +1,6 @@
 using System.Collections;
 using Mirror;
+using SkillForge.Demo;
 using SkillForge.Core;
 using SkillForge.Networking;
 using TMPro;
@@ -22,55 +23,14 @@ namespace SkillForge.UI
         [SerializeField]
         private Button _connectButton;
 
-        [SerializeField]
-        private Button _btnScanDiagPort;
-
-        [SerializeField]
-        private Button _btnScanBrakes;
-
-        [SerializeField]
-        private Button _btnLoosenBoltLeft;
-
-        [SerializeField]
-        private Button _btnRemoveCaliperLeft;
-
-        [SerializeField]
-        private Button _btnRemoveBrakePadLeft;
-
-        [SerializeField]
-        private Button _btnInstallBrakePadLeft;
-
-        [SerializeField]
-        private Button _btnInstallCaliperLeft;
-
-        [SerializeField]
-        private Button _btnTightenBoltLeft;
-
-        [SerializeField]
-        private Button _btnLoosenBoltRight;
-
-        [SerializeField]
-        private Button _btnRemoveCaliperRight;
-
-        [SerializeField]
-        private Button _btnRemovePadRight;
-
-        [SerializeField]
-        private Button _btnInstallPadRight;
-
-        [SerializeField]
-        private Button _btnInstallCaliperRight;
-
-        [SerializeField]
-        private Button _btnTightenBoltRight;
-
-        [SerializeField]
-        private Button _btnFinalDiagnostic;
+        [SerializeField] private DemoTaskSpace _taskSpace;
+        [SerializeField] private Button _currentActionButton;
 
         [SerializeField]
         private Button _btnEndSession;
 
         private int _playerId = -1;
+        private UpdateUIMessage _step;
 
 private void Start()
 {
@@ -79,7 +39,15 @@ private void Start()
         _connectButton.onClick.AddListener(OnConnectClicked);
     }
 
-    SetupActionButtons();
+    if (_currentActionButton != null)
+    {
+        _currentActionButton.onClick.AddListener(SendCurrentAction);
+    }
+
+    if (_btnEndSession != null)
+    {
+        _btnEndSession.onClick.AddListener(NetworkMessageSender.SendEndSession);
+    }
 
     if (_actionPanel != null)
     {
@@ -87,26 +55,28 @@ private void Start()
     }
 
     UpdateStatus("Not connected.");
-    GameManager.OnErrorReceived += OnServerErrorReceived;
-    GameManager.OnActiveSessionChanged += OnSessionActiveChanged;
-    NetworkClient.RegisterHandler<GameNetworkMessage>(OnGameNetworkMessage);
-    NetworkClient.RegisterHandler<UpdateUIMessage>(OnUIUpdate);
+    _taskSpace.GameMessageReceived += OnGameNetworkMessage;
+    _taskSpace.StepUpdated += OnUIUpdate;
 }
 
 private void OnUIUpdate(UpdateUIMessage msg)
 {
-    UpdateStatus($"Шаг {msg.stepIndex + 1}: {msg.instruction}");
+    _step = msg;
+    if (_currentActionButton != null)
+    {
+        _currentActionButton.interactable = !string.IsNullOrEmpty(msg.intention.action);
+    }
+
+    UpdateStatus($"Шаг {msg.stepIndex + 1}. {msg.instruction}");
 }
 
 
         private void OnDestroy()
         {
-            GameManager.OnErrorReceived -= OnServerErrorReceived;
-            GameManager.OnActiveSessionChanged -= OnSessionActiveChanged;
-
-            if (NetworkClient.isConnected)
+            if (_taskSpace != null)
             {
-                NetworkClient.UnregisterHandler<GameNetworkMessage>();
+                _taskSpace.GameMessageReceived -= OnGameNetworkMessage;
+                _taskSpace.StepUpdated -= OnUIUpdate;
             }
         }
 
@@ -157,11 +127,6 @@ private void OnUIUpdate(UpdateUIMessage msg)
             }
         }
 
-        private void OnServerErrorReceived(string message)
-        {
-            ShowError(message);
-        }
-
         private void OnGameNetworkMessage(GameNetworkMessage msg)
         {
             switch (msg.type)
@@ -175,180 +140,6 @@ private void OnUIUpdate(UpdateUIMessage msg)
                 case "report":
                     UpdateStatus("Отчёт: " + msg.payload);
                     break;
-            }
-        }
-
-        private void SetupActionButtons()
-        {
-            if (_btnScanDiagPort != null)
-            {
-                _btnScanDiagPort.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "scan",
-                    targetObject = "diag_port"
-                }));
-            }
-
-            if (_btnScanBrakes != null)
-            {
-                _btnScanBrakes.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "scan",
-                    targetObject = "brakes"
-                }));
-            }
-
-            if (_btnLoosenBoltLeft != null)
-            {
-                _btnLoosenBoltLeft.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "bolt_caliper_front_left_01",
-                    tool = "wrench",
-                    action = "loosen"
-                }));
-            }
-
-            if (_btnRemoveCaliperLeft != null)
-            {
-                _btnRemoveCaliperLeft.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "caliper_front_left",
-                    action = "remove"
-                }));
-            }
-
-            if (_btnRemoveBrakePadLeft != null)
-            {
-                _btnRemoveBrakePadLeft.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "brake_pad_front_left",
-                    action = "remove"
-                }));
-            }
-
-            if (_btnInstallBrakePadLeft != null)
-            {
-                _btnInstallBrakePadLeft.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "brake_pad_front_left",
-                    action = "install"
-                }));
-            }
-
-            if (_btnInstallCaliperLeft != null)
-            {
-                _btnInstallCaliperLeft.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "caliper_front_left",
-                    action = "install"
-                }));
-            }
-
-            if (_btnTightenBoltLeft != null)
-            {
-                _btnTightenBoltLeft.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "bolt_caliper_front_left_01",
-                    tool = "wrench",
-                    action = "tighten"
-                }));
-            }
-
-            if (_btnLoosenBoltRight != null)
-            {
-                _btnLoosenBoltRight.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "bolt_caliper_front_right_01",
-                    tool = "wrench",
-                    action = "loosen"
-                }));
-            }
-
-            if (_btnRemoveCaliperRight != null)
-            {
-                _btnRemoveCaliperRight.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "caliper_front_right",
-                    action = "remove"
-                }));
-            }
-
-            if (_btnRemovePadRight != null)
-            {
-                _btnRemovePadRight.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "pad_front_right",
-                    action = "remove"
-                }));
-            }
-
-            if (_btnInstallPadRight != null)
-            {
-                _btnInstallPadRight.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "pad_front_right",
-                    action = "install"
-                }));
-            }
-
-            if (_btnInstallCaliperRight != null)
-            {
-                _btnInstallCaliperRight.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "caliper_front_right",
-                    action = "install"
-                }));
-            }
-
-            if (_btnTightenBoltRight != null)
-            {
-                _btnTightenBoltRight.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "use_tool",
-                    targetObject = "bolt_caliper_front_right_01",
-                    tool = "wrench",
-                    action = "tighten"
-                }));
-            }
-
-            if (_btnFinalDiagnostic != null)
-            {
-                _btnFinalDiagnostic.onClick.AddListener(() => SendIntention(new Intention
-                {
-                    playerId = _playerId,
-                    intentType = "scan",
-                    targetObject = "brakes"
-                }));
-            }
-
-            if (_btnEndSession != null)
-            {
-                _btnEndSession.onClick.AddListener(NetworkMessageSender.SendEndSession);
             }
         }
 
@@ -385,10 +176,12 @@ private void OnConnectClicked()
             }
         }
 
-        private void SendIntention(Intention intent)
+        private void SendCurrentAction()
         {
-            Debug.Log($"[DebugClientUI] SendIntention called: type={intent.intentType}, target={intent.targetObject}");
-            NetworkMessageSender.SendIntention(intent);
+            if (NetworkClient.isConnected && !string.IsNullOrEmpty(_step.intention.action))
+            {
+                NetworkMessageSender.SendIntention(_step.intention);
+            }
         }
     }
 }

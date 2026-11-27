@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using Mirror;
 using SkillForge.Core;
 using SkillForge.Education;
@@ -56,17 +55,12 @@ namespace SkillForge.Networking
         [SyncVar]
         private bool _isSessionActive;
 
+        [SerializeField] private ScenarioProvider _scenarioProvider;
+
         private bool _sessionEnded;
 
         [SyncVar(hook = nameof(OnCarStateChangedHook))]
         private string _carStateJson;
-
-        private readonly Dictionary<int, NetworkConnectionToClient> _playerConnections;
-
-        public GameManager()
-        {
-            _playerConnections = new Dictionary<int, NetworkConnectionToClient>();
-        }
 
         public override void OnStartServer()
         {
@@ -91,13 +85,22 @@ namespace SkillForge.Networking
         [Server]
         public void StartSession(SessionConfig config)
         {
+            var scenario = _scenarioProvider != null ? _scenarioProvider.GetScenario(config.scenarioId) : null;
+            if (scenario == null || scenario.steps == null || scenario.steps.Length == 0 ||
+                Array.Exists(scenario.steps, step => step == null || string.IsNullOrEmpty(step.action)))
+            {
+                Debug.LogError($"[GameManager] Scenario unavailable: {config.scenarioId}");
+                return;
+            }
+
             _sessionEnded = false;
+            _workContext.ResetState();
 
             var scenarioConfig = new ScenarioConfig
                                  {
                                      scenarioId = config.scenarioId,
                                      mode = config.mode,
-                                     steps = null
+                                     steps = scenario.steps
                                  };
 
             _educationModule.Initialize(scenarioConfig);
@@ -110,13 +113,13 @@ namespace SkillForge.Networking
 
             _carStateJson = _workContext.SerializeState();
 
-            SendUIUpdate(_currentInstruction, _currentStepIndex);
+            SendUIUpdate(currentStep);
 
             Debug.Log($"[GameManager] Session started: {config.scenarioId}");
         }
 
         [Server]
-        public void ProcessIntention(Intention intent)
+        public void ProcessIntention(NetworkConnectionToClient connection, Intention intent)
         {
             Debug.Log($"[GameManager] ProcessIntention: type={intent.intentType}, target={intent.targetObject}, playerId={intent.playerId}");
 
@@ -126,39 +129,36 @@ namespace SkillForge.Networking
                 return;
             }
 
-            if (_playerConnections.TryGetValue(intent.playerId, out var connection))
+            var currentStep = _educationModule.GetCurrentStep();
+
+            var validationResult = _validationService.Validate(intent, currentStep, _workContext);
+
+            if (validationResult != ValidationResult.Success)
             {
-                var currentStep = _educationModule.GetCurrentStep();
+                _educationModule.OnActionLogged(intent, false, validationResult.ToString());
+                SendErrorToClient(connection, validationResult.ToString());
+                return;
+            }
 
-                var validationResult = _validationService.Validate(intent, currentStep, _workContext);
+            _workContext.ApplyAction(intent);
+            _educationModule.OnActionLogged(intent, true, null);
 
-                if (validationResult != ValidationResult.Success)
+            _carStateJson = _workContext.SerializeState();
+
+            if (ShouldAdvanceStep())
+            {
+                _educationModule.MarkCurrentStepCompleted();
+                _educationModule.AdvanceStep();
+                _currentStepIndex++;
+
+                var nextStep = _educationModule.GetCurrentStep();
+                _currentInstruction = nextStep?.instruction ?? string.Empty;
+
+                SendUIUpdate(nextStep);
+
+                if (_educationModule.AllStepsCompleted())
                 {
-                    _educationModule.OnActionLogged(intent, false, validationResult.ToString());
-                    SendErrorToClient(connection, validationResult.ToString());
-                    return;
-                }
-
-                _workContext.ApplyAction(intent);
-                _educationModule.OnActionLogged(intent, true, null);
-
-                _carStateJson = _workContext.SerializeState();
-
-                if (ShouldAdvanceStep())
-                {
-                    _educationModule.MarkCurrentStepCompleted();
-                    _educationModule.AdvanceStep();
-                    _currentStepIndex++;
-
-                    var nextStep = _educationModule.GetCurrentStep();
-                    _currentInstruction = nextStep?.instruction ?? string.Empty;
-
-                    SendUIUpdate(_currentInstruction, _currentStepIndex);
-
-                    if (_educationModule.AllStepsCompleted())
-                    {
-                        EndSession();
-                    }
+                    EndSession();
                 }
             }
         }
@@ -173,18 +173,6 @@ namespace SkillForge.Networking
             }
 
             EndSession();
-        }
-
-        [Server]
-        public void RegisterPlayerConnection(int playerId, NetworkConnectionToClient connection)
-        {
-            _playerConnections[playerId] = connection;
-        }
-
-        [Server]
-        public void RemovePlayerConnection(int playerId)
-        {
-            _playerConnections.Remove(playerId);
         }
 
         public CarState GetCarState()
@@ -259,9 +247,18 @@ namespace SkillForge.Networking
             NetworkServer.SendToAll(msg);
         }
 
-        private void SendUIUpdate(string instruction, int stepIndex)
+        private void SendUIUpdate(ScenarioStep step)
         {
-            NetworkServer.SendToAll(new UpdateUIMessage { instruction = instruction, stepIndex = stepIndex });
+            NetworkServer.SendToAll(new UpdateUIMessage
+            {
+                instruction = _currentInstruction,
+                stepIndex = _currentStepIndex,
+                input = step != null ? step.input : default,
+                hint = step != null ? step.hint : null,
+                buttonLabel = step != null ? step.buttonLabel : null,
+                intention = step != null ? step.CreateIntention() : default,
+                removedTargetIds = _workContext.GetRemovedTargetIds()
+            });
         }
 
         private void OnWorkContextStateChanged()
@@ -274,7 +271,10 @@ namespace SkillForge.Networking
 
         private void OnCarStateChangedHook(string oldValue, string newValue)
         {
-            _workContext.DeserializeState(newValue);
+            if (!isServer)
+            {
+                _workContext.DeserializeState(newValue);
+            }
             OnCarStateChanged?.Invoke(((CarWorkContext)_workContext).GetState());
         }
     }

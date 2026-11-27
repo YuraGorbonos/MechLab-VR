@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Mirror;
 using SkillForge.Core;
@@ -105,7 +105,7 @@ namespace SkillForge.Networking
             if (_gameManager == null) return;
 
             msg.intention.playerId = conn.connectionId;
-            _gameManager.ProcessIntention(msg.intention);
+            _gameManager.ProcessIntention(conn, msg.intention);
         }
 
         private void OnServerReceiveEndSession(NetworkConnectionToClient conn, EndSessionMessage msg)

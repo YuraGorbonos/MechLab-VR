@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SkillForge.Core;
 using UnityEngine;
 
@@ -126,6 +127,11 @@ namespace SkillForge.WorkContexts
             return _parts.TryGetValue(partId, out var state) ? state : PartState.Default;
         }
 
+        public string[] GetRemovedTargetIds()
+        {
+            return _parts.Where(part => part.Value == PartState.Removed).Select(part => part.Key).ToArray();
+        }
+
         public string SerializeState()
         {
             var data = new CarStateData
@@ -201,7 +207,7 @@ namespace SkillForge.WorkContexts
             return _diagnosedSubsystems.Contains(subsystem);
         }
 
-        private void ResetState()
+        public void ResetState()
         {
             _state = new CarState
                      {

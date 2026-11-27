@@ -1,9 +1,13 @@
-using System.Collections.Generic;
+using System;
+using System.Linq;
 using Mirror;
 using SkillForge.Core;
 using SkillForge.Networking;
+using SkillForge.VR;
 using UnityEngine;
-using UnityEngine.UI;using UnityEngine.InputSystem;
+using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using UnityEngine.XR.Interaction.Toolkit.UI;
 using UnityEngine.InputSystem.Controls;
 
 
@@ -11,68 +15,55 @@ namespace SkillForge.Demo
 {
     public class DemoTaskSpace : MonoBehaviour
     {
-        private static readonly Intention[] Steps =
+        [Serializable]
+        private class TargetView
         {
-            new Intention { intentType = "scan", targetObject = "diag_port", tool = "diagnostic_scanner", action = "scan" },
-            new Intention { intentType = "scan", targetObject = "brakes", action = "scan" },
-            new Intention { intentType = "use_tool", targetObject = "bolt_caliper_front_left_01", tool = "wrench", action = "loosen" },
-            new Intention { intentType = "use_tool", targetObject = "caliper_front_left", tool = "wrench", action = "remove" },
-            new Intention { intentType = "use_tool", targetObject = "brake_pad_front_left", action = "remove" },
-            new Intention { intentType = "use_tool", targetObject = "brake_pad_front_left", action = "install" },
-            new Intention { intentType = "use_tool", targetObject = "caliper_front_left", tool = "wrench", action = "install" },
-            new Intention { intentType = "use_tool", targetObject = "bolt_caliper_front_left_01", tool = "wrench", action = "tighten" }
-        };
-
-        private int _step;
-        private Text _title;
-        private Text _hint;
-        private readonly List<GameObject> _calipers = new List<GameObject>();
-        private readonly List<GameObject> _pads = new List<GameObject>();
-        private readonly List<GameObject> _bolts = new List<GameObject>();
-        private Transform _arrow;
-        private Text _arrowLabel;
-        private string _instruction = "Подключите сканер к автомобилю";
-        private static readonly string[] GuideTargets = { "BrakeAssembly", "brake_disc", "bolt_01", "brake_caliper", "brake_pad_inner", "brake_disc", "brake_disc", "bolt_01" };
-
-
-private void Start()
-{
-    BuildBoard();
-    CreatePointer();
-    CacheParts();
-    ApplyVisuals();
-    PointAtCurrentStep();
-    NetworkClient.RegisterHandler<UpdateUIMessage>(OnStep);
-    NetworkClient.RegisterHandler<GameNetworkMessage>(OnGame);
-    SetTitle("Стрелка показывает деталь. Курок или E — выполнить.");
-}
-
-private static void AddGarageColliders()
-{
-    var garage = GameObject.Find("Garage");
-    if (garage == null)
-    {
-        return;
-    }
-
-    foreach (var filter in garage.GetComponentsInChildren<MeshFilter>(true))
-    {
-        if (filter.sharedMesh == null || filter.GetComponent<Collider>() != null)
-        {
-            continue;
+            public string targetId;
+            public Transform guide;
+            public Transform installationGuide;
+            public GameObject[] visuals;
         }
 
-        var collider = filter.gameObject.AddComponent<MeshCollider>();
-        collider.sharedMesh = filter.sharedMesh;
-    }
-}
+        [SerializeField] private TargetView[] _targets;
+        [SerializeField] private Transform _boardMount;
 
+        public event Action<UpdateUIMessage> StepUpdated;
+        public event Action<GameNetworkMessage> GameMessageReceived;
+
+        private UpdateUIMessage _step;
+        private Button _stepButton;
+        private Text _stepButtonLabel;
+        private Text _title;
+        private Text _hint;
+        private Transform _arrow;
+        private Text _arrowLabel;
+
+        private void Start()
+        {
+            BuildBoard();
+            CreatePointer();
+            _arrow.gameObject.SetActive(false);
+            NetworkClient.RegisterHandler<UpdateUIMessage>(OnStep);
+            NetworkClient.RegisterHandler<GameNetworkMessage>(OnGame);
+            SetTitle("Ожидание запуска занятия");
+        }
+
+        private void OnDestroy()
+        {
+            NetworkClient.UnregisterHandler<UpdateUIMessage>();
+            NetworkClient.UnregisterHandler<GameNetworkMessage>();
+
+            if (_arrow != null)
+            {
+                Destroy(_arrow.gameObject);
+            }
+        }
 
 private void Update()
 {
-    if (TriggerPressed())
+    if (CanPerform(StepInput.Shortcut) && TriggerPressed())
     {
-        Perform();
+        NetworkMessageSender.SendIntention(_step.intention);
     }
 
     PointAtCurrentStep();
@@ -140,8 +131,9 @@ private void PointAtCurrentStep()
         return;
     }
 
-    var index = Mathf.Clamp(_step, 0, GuideTargets.Length - 1);
-    var target = FindGuide(GuideTargets[index]) ?? FindGuide("BrakeAssembly");
+    var target = _step.input == StepInput.TabletButton
+        ? _stepButton.transform
+        : GetGuide(_step.intention.targetObject);
     if (target == null)
     {
         return;
@@ -164,7 +156,7 @@ private void PointAtCurrentStep()
     _arrow.position = point;
     if (_arrowLabel != null)
     {
-        _arrowLabel.text = _instruction;
+        _arrowLabel.text = _step.instruction;
         var camera = Camera.main;
         if (camera != null)
         {
@@ -173,108 +165,95 @@ private void PointAtCurrentStep()
     }
 }
 
-private static Transform FindGuide(string partName)
-{
-    Transform hidden = null;
-    foreach (var item in FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-    {
-        if (item.name != partName && !item.name.StartsWith(partName))
+        private Transform GetGuide(string targetId)
         {
-            continue;
-        }
-
-        if (item.gameObject.activeInHierarchy)
-        {
-            return item;
-        }
-
-        hidden = item;
-    }
-
-    return hidden;
-}
-
-
-private void OnStep(UpdateUIMessage message)
-{
-    _step = message.stepIndex;
-    _instruction = message.instruction;
-    SetTitle($"Шаг {message.stepIndex + 1}. {message.instruction}");
-    SetHint("Стрелка на детали. Курок — выполнить");
-    ApplyVisuals();
-    PointAtCurrentStep();
-}
-
-private void OnGame(GameNetworkMessage message)
-{
-    if (message.type == "error")
-    {
-        SetHint(message.payload);
-    }
-    else if (message.type == "report")
-    {
-        SetTitle("Смена завершена.");
-        SetHint(message.payload);
-        Show(true, true, true);
-        if (_arrow != null)
-        {
-            _arrow.gameObject.SetActive(false);
-        }
-    }
-}
-
-        private void Perform()
-        {
-            if (!NetworkClient.isConnected)
+            var target = Array.Find(_targets, view => view.targetId == targetId);
+            if (target == null)
             {
-                SetHint("Нет соединения с сервером.");
-                return;
+                return null;
             }
 
-            if (_step < 0 || _step >= Steps.Length)
-            {
-                return;
-            }
-
-            NetworkMessageSender.SendIntention(Steps[_step]);
+            return target.guide.gameObject.activeInHierarchy ? target.guide : target.installationGuide;
         }
 
-        private void CacheParts()
+        private void OnStep(UpdateUIMessage message)
         {
-            foreach (var item in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            _step = message;
+            var hasStep = !string.IsNullOrEmpty(message.intention.action);
+            var hasButton = hasStep && message.input == StepInput.TabletButton;
+            _stepButton.gameObject.SetActive(hasButton);
+            _stepButtonLabel.text = message.buttonLabel;
+            _arrow.gameObject.SetActive(hasStep);
+            if (hasStep)
             {
-                var partName = item.name;
-                if (partName.Contains("brake_caliper")) _calipers.Add(item.gameObject);
-                else if (partName.Contains("brake_pad")) _pads.Add(item.gameObject);
-                else if (partName.Contains("bolt_")) _bolts.Add(item.gameObject);
+                SetTitle($"Шаг {message.stepIndex + 1}. {message.instruction}");
+                SetHint(message.hint);
+            }
+
+            ApplyVisuals(message.removedTargetIds);
+            PointAtCurrentStep();
+            StepUpdated?.Invoke(message);
+        }
+
+        private void OnGame(GameNetworkMessage message)
+        {
+            if (message.type == "error")
+            {
+                SetHint(message.payload);
+            }
+            else if ((message.type == "session_state" && message.payload == "0") || message.type == "report")
+            {
+                _step = default;
+                _stepButton.gameObject.SetActive(false);
+                _arrow.gameObject.SetActive(false);
+                SetTitle("Смена завершена.");
+                if (message.type == "report")
+                {
+                    SetHint(message.payload);
+                }
+            }
+
+            GameMessageReceived?.Invoke(message);
+        }
+
+        public void TryUseTool(ToolInteractionHandler tool)
+        {
+            if (CanPerform(StepInput.HeldTool) && tool.TryInteract(out var intention) &&
+                intention.targetObject == _step.intention.targetObject)
+            {
+                intention.intentType = _step.intention.intentType;
+                intention.action = _step.intention.action;
+                NetworkMessageSender.SendIntention(intention);
             }
         }
 
-        private void ApplyVisuals()
+        private bool CanPerform(StepInput input)
         {
-            var caliperOn = _step < 4 || _step >= 6;
-            var padsOn = _step < 5 || _step >= 6;
-            Show(caliperOn, padsOn, caliperOn);
+            return _step.input == input && !string.IsNullOrEmpty(_step.intention.action) &&
+                   NetworkClient.isConnected;
         }
 
-        private void Show(bool caliper, bool pads, bool bolts)
+        private void ApplyVisuals(string[] removedTargetIds)
         {
-            foreach (var item in _calipers) item.SetActive(caliper);
-            foreach (var item in _pads) item.SetActive(pads);
-            foreach (var item in _bolts) item.SetActive(bolts);
+            foreach (var target in _targets)
+            {
+                var visible = removedTargetIds == null || !removedTargetIds.Contains(target.targetId);
+                foreach (var visual in target.visuals)
+                {
+                    visual.SetActive(visible);
+                }
+            }
         }
 
         private void BuildBoard()
         {
             var canvasObject = new GameObject("TaskBoard");
-            canvasObject.transform.SetParent(transform, false);
-            canvasObject.transform.localPosition = new Vector3(0f, 1.35f, 0.8f);
-            canvasObject.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            canvasObject.transform.SetParent(_boardMount, false);
             var canvas = canvasObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
+            canvasObject.AddComponent<TrackedDeviceGraphicRaycaster>();
             var rect = canvas.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(900f, 420f);
-            canvasObject.transform.localScale = Vector3.one * 0.0016f;
 
             var panel = new GameObject("Panel");
             panel.transform.SetParent(canvasObject.transform, false);
@@ -285,10 +264,32 @@ private void OnGame(GameNetworkMessage message)
             panelRect.offsetMax = Vector2.zero;
             var image = panel.AddComponent<Image>();
             image.color = new Color(0.08f, 0.1f, 0.12f, 0.92f);
+            image.raycastTarget = false;
 
             _title = CreateText(panel.transform, "Title", new Vector2(0f, 40f), 40);
             _hint = CreateText(panel.transform, "Hint", new Vector2(0f, -120f), 26);
             _hint.color = new Color(0.95f, 0.78f, 0.35f);
+
+            var buttonObject = new GameObject("StepButton");
+            buttonObject.transform.SetParent(panel.transform, false);
+            var buttonRect = buttonObject.AddComponent<RectTransform>();
+            buttonRect.sizeDelta = new Vector2(460f, 78f);
+            buttonRect.anchoredPosition = new Vector2(0f, -40f);
+            var buttonImage = buttonObject.AddComponent<Image>();
+            buttonImage.color = new Color(0.16f, 0.34f, 0.48f);
+            _stepButton = buttonObject.AddComponent<Button>();
+            _stepButton.targetGraphic = buttonImage;
+            _stepButton.onClick.AddListener(OnStepButtonClicked);
+            _stepButtonLabel = CreateText(buttonObject.transform, "Label", Vector2.zero, 32);
+            buttonObject.SetActive(false);
+        }
+
+        private void OnStepButtonClicked()
+        {
+            if (CanPerform(StepInput.TabletButton))
+            {
+                NetworkMessageSender.SendIntention(_step.intention);
+            }
         }
 
         private static Text CreateText(Transform parent, string name, Vector2 position, int size)
@@ -305,6 +306,7 @@ private void OnGame(GameNetworkMessage message)
             text.color = new Color(0.94f, 0.96f, 0.94f);
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
             return text;
         }
 
